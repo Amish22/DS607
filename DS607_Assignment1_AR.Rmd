@@ -1,0 +1,37 @@
+---
+title: "DS607_Assignment1"
+author: "Amish Rasheed"
+date: "2024-09-02"
+output: html_document
+---
+
+## Overview
+
+The article chosen for this assignment is titled "[The Republican Path To A House Majority Goes Through The Suburbs](https://fivethirtyeight.com/features/the-republican-path-to-a-house-majority-goes-through-the-suburbs/)". The paper talks about the role suburban populations have played in election outcomes as they are more politically competitive compared to urban or rural seats.
+
+## Data Manipulation
+
+```{r pressure, echo=TRUE}
+library(dplyr)
+library(readr)
+url <- "https://raw.githubusercontent.com/Amish22/DS607Assignment1/main/urbanization-index-2022.csv"
+dataset <- read_csv(url)
+head(dataset)
+
+subset_dataset <- dataset %>%
+  select(
+    District = stcd, 
+    State = state, 
+    PVI = pvi_22,
+    UrbanIndex = urbanindex,
+    Grouping = grouping
+  )
+
+head(subset_dataset)
+```
+
+## Conclusions
+
+As highlighted in the article, many of the closely contested races are occurring in suburban zones, with both parties seeking control in districts that can swing either way.
+
+To build upon this work, future research could delve deeper into the specific characteristics of suburban populations that contribute to their critical role in elections. This could involve examining demographic factors such as race, age, education levels, and socioeconomic status, which are often highly varied in suburban areas. By understanding how these variables correlate with voting behavior, we could gain a more nuanced view of what drives electoral outcomes in these regions.
