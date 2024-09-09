@@ -74,5 +74,4 @@ dbWriteTable(con, "movie_ratings", insert_data, append = TRUE, row.names = FALSE
 result <- dbGetQuery(con, "SELECT * FROM movie_ratings;")
 print(result)
 
-# Step 13: Disconnect from the database
 dbDisconnect(con)
