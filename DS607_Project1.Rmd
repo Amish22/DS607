@@ -1,0 +1,87 @@
+---
+title: "607_Project1"
+author: "Amish Rasheed"
+date: "2024-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(readr)
+library(stringr)
+```
+
+
+```{r load-data}
+
+file_url <- "https://raw.githubusercontent.com/Amish22/DS607/refs/heads/main/tournamentinfo.txt"
+lines <- readLines(file_url)
+
+lines <- lines
+head(lines)
+```
+
+
+```{r extract-data}
+
+players_data <- data.frame(Name = character(),
+                           State = character(),
+                           Points = numeric(),
+                           PreRating = numeric(),
+                           Opponents = character(),
+                           stringsAsFactors = FALSE)
+
+
+i <- 1
+while (i <= length(lines)) {
+  if (grepl("^\\s*\\d+", lines[i])) {
+    
+    player_info <- unlist(str_split(lines[i], "\\|"))
+    name <- str_trim(player_info[2])
+    
+    points <- as.numeric(str_trim(player_info[3]))
+    
+    state_info <- unlist(str_split(lines[i + 1], "\\|"))
+    state <- str_trim(state_info[1])
+    
+    pre_rating <- as.numeric(str_extract(state_info[2], "(?<=R:\\s)\\d+"))
+    
+    opponents <- paste(str_extract_all(lines[i], "\\d+")[[1]], collapse = " ")
+    
+    players_data <- rbind(players_data,
+                          data.frame(Name = name,
+                                     State = state,
+                                     Points = points,
+                                     PreRating = pre_rating,
+                                     Opponents = opponents,
+                                     stringsAsFactors = FALSE))
+    
+    i <- i + 2
+  } else {
+    i <- i + 1
+  }
+}
+
+# extract the opponent's average rating
+calculate_avg_rating <- function(opponents, players_data) {
+  opponent_ids <- as.numeric(str_extract_all(opponents, "\\d+")[[1]])
+  opponent_ratings <- players_data$PreRating[opponent_ids]
+  avg_rating <- mean(opponent_ratings, na.rm = TRUE)
+  return(avg_rating)
+}
+
+# average opponent rating
+players_data$Avg_Opp_Rating <- sapply(players_data$Opponents, calculate_avg_rating, players_data = players_data)
+
+final_players_data <- players_data %>%
+  select(Name, State, Points, PreRating, Avg_Opp_Rating)
+
+head(final_players_data)
+```
+
+## CSV
+
+```{r export-csv}
+write.csv(final_players_data, "final_players_data.csv", row.names = FALSE)
+```
