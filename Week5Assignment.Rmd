@@ -1,0 +1,110 @@
+---
+title: "Week 5 assignment"
+author: "Amish Rasheed"
+date: "2024-09-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+# CSV data
+url <- "https://raw.githubusercontent.com/Amish22/DS607/refs/heads/main/airline-data.csv"
+airline_data <- read.csv(url)
+
+head(airline_data)
+```
+The dataset is in a wide format, where each row corresponds to a combination of airline and status (on time or delayed), and columns represent counts of flights for five destinations. To facilitate analysis, I reshaped this data into a long format.
+
+```{r}
+# Converting data to long format 
+tidy_airline_data <- airline_data %>%
+  pivot_longer(cols = c("Los.Angeles", "Phoenix", "San.Diego", "San.Francisco", "Seattle"),
+               names_to = "Destination",
+               values_to = "Count")
+
+
+print(tidy_airline_data)
+```
+
+The tidied data now has three primary columns: Airline, Status, and Destination. The Count column represents the number of flights for each combination of airline, status, and destination.
+
+```{r}
+summary_data <- tidy_airline_data %>%
+  group_by(Airline, Status, Destination) %>%
+  summarize(Total_Flights = sum(Count), .groups = "drop")
+
+print(summary_data)
+
+```
+
+```{r}
+# Percent delayed
+delay_percentage <- summary_data %>%
+  pivot_wider(names_from = Status, values_from = Total_Flights) %>%
+  mutate(Delay_Percentage = (delayed / (`on time` + delayed)) * 100) %>%
+  select(Airline, Destination, Delay_Percentage)
+
+print(delay_percentage)
+```
+
+The delay percentage provides an easy way to compare on-time performance between the two airlines. A lower delay percentage indicates better on-time performance. This metric will be used in the visualization below to highlight differences.
+
+```{r}
+ggplot(delay_percentage, aes(x = Destination, y = Delay_Percentage, fill = Airline)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Comparison of Delay Percentages for ALASKA and AM WEST",
+       x = "Destination", y = "Delay Percentage (%)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The bar plot provides a side-by-side comparison of delay percentages for ALASKA and AM WEST across the five destinations. From the plot, we can see that AM WEST generally has higher delay percentages compared to ALASKA.
+
+```{r}
+# Destination with highest and lowest delay percentage for each airline
+highest_delay <- delay_percentage %>%
+  group_by(Airline) %>%
+  slice_max(Delay_Percentage)
+
+lowest_delay <- delay_percentage %>%
+  group_by(Airline) %>%
+  slice_min(Delay_Percentage)
+
+highest_delay
+lowest_delay
+```
+```{r}
+# Statistical summary for delay percentages
+stat_summary <- delay_percentage %>%
+  group_by(Airline) %>%
+  summarize(Average_Delay = mean(Delay_Percentage),
+            Median_Delay = median(Delay_Percentage),
+            .groups = "drop")
+
+stat_summary
+
+stat_summary_long <- stat_summary %>%
+  pivot_longer(cols = c("Average_Delay", "Median_Delay"),
+               names_to = "Statistic",
+               values_to = "Percentage")
+
+# Bar plot to compare average and median delays for each airline
+ggplot(stat_summary_long, aes(x = Airline, y = Percentage, fill = Statistic)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(title = "Average and Median Delay Percentages for ALASKA and AM WEST",
+       x = "Airline", y = "Delay Percentage (%)") +
+  scale_fill_brewer(palette = "Set2")
+```
+AM WEST has a higher average delay percentage compared to ALASKA.
+The high average delay indicates that AM WEST experiences more frequent delays. 
+The median delay percentage for AM WEST is also higher than ALASKA, indicating 
+that even typical delays are more common for AM WEST.
+
