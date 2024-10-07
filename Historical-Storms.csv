@@ -1,9 +1,9 @@
 Storm,Date,Observed Storm-Tide,Forecasted Storm-Tide,Observation System,Warning Level,Category,Pressure (mb),Casualties,Damage (bn USD),Affected Areas
-2024-Helene,Sep 23-29,>9.3 mhhw,15-20 mhhw,FEV,Warn-A6 (1-8),Cat4,938,221+,27.5+,N.W. FL, GA, AL, TN, KY, VA, WV
-2024-Francine,Sep 12,5 mhhw,,FEV,Warn-A5 (1-15),Cat2,972,0,1.5,LA, MS
-2024-Gilma-cp,Aug 30,3 mhhw,,PS-Adv 43,46,,Cat4,949,NA,NA,HI
-2024-Hone-cp,Aug 25,3 mhhw,,PS-Adv 2-7,9-11,13,14,,Cat1,988,NA,NA,HI
-2024-Post-Typhoon Ampil,Aug 22,6.3 mhhw,,P-ETSS,,Cat4,947,NA,NA,AK
-2024-Debby,Aug 5-6,5.1 mhhw,,FEV,Warn-A5 (6-20),Cat1,979,10,>1,N.W. FL, GA, SC, NC
-2024-Beryl,Jul 8,8 mhhw,,FEV,Warn-A33 (29-41),Cat5,934,70,>6.86,TX, LA
-2024-Alberto,Jun 19-20,3 mhhw,,,TS,993,5,0.179,TX, LA
+2024-Helene,Sep 23-29,>9.3 mhhw,15-20 mhhw,FEV,Warn-A6 (1-8),Cat4,938,221+,27.5+,"N.W. FL, GA, AL, TN, KY, VA, WV"
+2024-Francine,Sep 12,5 mhhw,,FEV,Warn-A5 (1-15),Cat2,972,0,1.5,"LA, MS"
+2024-Gilma-cp,Aug 30,3 mhhw,,PS-Adv 43,46,,Cat4,949,-,-,"HI"
+2024-Hone-cp,Aug 25,3 mhhw,,PS-Adv 2-7,9-11,13,14,,Cat1,988,-,-,"HI"
+2024-Post-Typhoon Ampil,Aug 22,6.3 mhhw,,P-ETSS,,Cat4,947,-,-,"AK"
+2024-Debby,Aug 5-6,5.1 mhhw,,FEV,Warn-A5 (6-20),Cat1,979,10,>1,"N.W. FL, GA, SC, NC"
+2024-Beryl,Jul 8,8 mhhw,,FEV,Warn-A33 (29-41),Cat5,934,70,>6.86,"TX, LA"
+2024-Alberto,Jun 19-20,3 mhhw,,,TS,993,5,0.179,"TX, LA"
