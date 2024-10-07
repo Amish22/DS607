@@ -1,0 +1,171 @@
+---
+title: "Project 2: Data Analysis on Storm and Employee Datasets"
+author: "Amish Rasheed"
+date: "2024-10-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-packages, message=FALSE}
+library(tidyverse)
+library(openintro)
+library(readr)
+library(dplyr)
+```
+
+# Dataset 1: Historical Storms 2024 Data
+
+In this section, I analyzed the `Historical Storms 2024` data to explore the relationship between storm surge and impact variables, such as economic damage. Additionally, I investigated which states are more frequently affected by named storms.
+
+## Loading the Storm Dataset
+
+```{r}
+url <- "https://raw.githubusercontent.com/Amish22/DS607/refs/heads/main/Historical-Storm-Data.csv"
+storm_data <- read.csv(url, header = TRUE, sep = ",", stringsAsFactors = FALSE)
+head(storm_data)
+```
+
+## Separating the States into Separate Columns
+
+To analyze the number of named storms by state, we need to split the `Affected Areas` column into separate columns for each state. To achieve this using the `separate()` function from `tidyr`.
+
+```{r}
+storm_data <- storm_data %>%
+  separate(`Affected.Areas`, into = paste0("Area", 1:7), sep = ", ", fill = "right")
+```
+
+## Handling Missing Values
+
+Missing values can impact analysis and visualizations. To address this, replace all `NA` values in the dataset with a placeholder text `"No Data"`.
+
+```{r}
+storm_data <- storm_data %>%
+  mutate(across(everything(), ~ replace(., is.na(.), "No Data")))
+```
+
+## Analysis: Relationship Between Surge Data and Impact Variables
+
+We are particularly interested in understanding whether higher storm surges are associated with greater economic damage. For this analysis, convert the `Damage (bn USD)` and `Observed Storm-Tide` columns to numeric values and compute their correlation.
+
+```{r}
+storm_data$Damage..bn.USD. <- as.numeric(gsub("[^0-9.]", "", storm_data$Damage..bn.USD.))
+storm_data$Surge <- as.numeric(gsub("[^0-9.]", "", storm_data$Observed.Storm.Tide))
+
+# Checking correlation between surge and damage
+correlation <- cor(storm_data$Surge, storm_data$Damage..bn.USD., use = "complete.obs")
+correlation
+```
+
+**Summary**: A correlation value close to 1 or -1 would indicate a strong linear relationship. In our case, a positive correlation suggests that higher storm surges may be associated with increased economic damage.
+
+## Analyzing the Number of Named Storms by State
+
+Next, to identify which states have experienced the highest number of named storms, reshape the data and count the number of named storms for each state.
+
+```{r}
+state_counts <- storm_data %>%
+  pivot_longer(cols = starts_with("Area"), values_drop_na = TRUE) %>%
+  group_by(value) %>%
+  summarise(Count = n()) %>%
+  arrange(desc(Count))
+
+print(state_counts)
+```
+
+**Summary**: The table above shows the frequency of named storms for each state, helping us identify the regions that are most frequently impacted.
+
+## Visualization: Relationship Between Surge and Damage
+
+Create a scatter plot to visualize the relationship between observed storm-tide (surge) and economic damage.
+
+```{r}
+ggplot(storm_data, aes(x = Surge, y = Damage..bn.USD.)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(title = "Relationship between Surge and Damage (in billion USD)",
+       x = "Observed Storm-Tide (Surge)",
+       y = "Damage (bn USD)")
+```
+
+# Dataset 2: Employee Salary Data Analysis
+
+The second dataset focuses on employee salaries across different departments and divisions. Below I tried to understand the average compensation by gender, compensation distribution across departments, and how compensation varies with grade and division.
+
+## Loading the Employee Salary Dataset
+
+```{r}
+url <- "https://raw.githubusercontent.com/Amish22/DS607/refs/heads/main/Employee_Salaries_-_2023.csv"
+employee_data <- read.csv(url)
+head(employee_data)
+```
+
+## Data Transformation: Converting Salary Columns to Numeric
+
+To perform meaningful analysis, first convert the `Base_Salary`, `Overtime_Pay`, and `Longevity_Pay` columns to numeric values.
+
+```{r}
+employee_data <- employee_data %>%
+  mutate(Base_Salary = as.numeric(Base_Salary),
+         Overtime_Pay = as.numeric(Overtime_Pay),
+         Longevity_Pay = as.numeric(Longevity_Pay))
+head(employee_data)
+```
+
+## Calculating Total Compensation
+
+Total compensation is calculated by summing up base salary, overtime pay, and longevity pay.
+
+```{r}
+employee_data <- employee_data %>%
+  mutate(Total_Compensation = Base_Salary + Overtime_Pay + Longevity_Pay)
+```
+
+## Analysis: Average Compensation by Gender
+
+Explore whether there are differences in average compensation between genders.
+
+```{r}
+gender_summary <- employee_data %>%
+  group_by(Gender) %>%
+  summarise(Average_Compensation = mean(Total_Compensation, na.rm = TRUE))
+
+ggplot(gender_summary, aes(x = Gender, y = Average_Compensation, fill = Gender)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  theme_minimal() +
+  labs(title = "Average Compensation by Gender",
+       x = "Gender",
+       y = "Average Total Compensation") +
+  scale_fill_manual(values = c("skyblue", "lightcoral"))
+```
+
+## Analyzing Compensation by Department
+
+Calculate the average compensation by department and division to identify where salaries are concentrated.
+
+```{r}
+department_summary <- employee_data %>%
+  group_by(Department, Division) %>%
+  summarise(Average_Department_Compensation = mean(Total_Compensation, na.rm = TRUE))
+```
+
+## Compensation by Grade and Division
+
+Finally, create a table to view the average compensation by grade across different divisions.
+
+```{r}
+compensation_by_grade <- employee_data %>%
+  group_by(Division, Grade) %>%
+  summarise(Avg_Compensation = mean(Total_Compensation, na.rm = TRUE)) %>%
+  pivot_wider(names_from = Grade, values_from = Avg_Compensation)
+```
+
+**Summary**: The table above shows the average compensation for each grade across divisions, providing insights into pay distribution across different levels.
+
+```{r}
+View(gender_summary)
+View(department_summary)
+View(compensation_by_grade)
+```
