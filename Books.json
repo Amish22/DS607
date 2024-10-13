@@ -1,0 +1,39 @@
+{
+  "books": [
+    {
+      "title": "Gödel, Escher, Bach: An Eternal Golden Braid",
+      "year": 1979,
+      "author": "Douglas Hofstadter",
+      "genre": "Non-fiction, Philosophy, Cognitive Science",
+      "themes": [
+        "Self-reference",
+        "Formal systems",
+        "Intersection of mathematics, art, and music"
+      ]
+    },
+    {
+      "title": "The Talisman",
+      "year": 1984,
+      "author": "Stephen King, Peter Straub",
+      "genre": "Fantasy, Horror",
+      "themes": [
+        "Parallel universes",
+        "Hero’s journey",
+        "Mother-son bond",
+        "Good vs. evil"
+      ]
+    },
+    {
+      "title": "Crime and Punishment",
+      "year": 1866,
+      "author": "Fyodor Dostoevsky",
+      "genre": "Fiction, Psychological, Philosophical novel",
+      "themes": [
+        "Guilt",
+        "Morality",
+        "Redemption",
+        "Crime and justice"
+      ]
+    }
+  ]
+}

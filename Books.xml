@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<books>
+    <book>
+        <title>Gödel, Escher, Bach: An Eternal Golden Braid</title>
+        <year>1979</year>
+        <author>Douglas Hofstadter</author>
+        <genre>Non-fiction, Philosophy, Cognitive Science</genre>
+        <themes>
+            <theme>Self-reference</theme>
+            <theme>Formal systems</theme>
+            <theme>Intersection of mathematics, art, and music</theme>
+        </themes>
+    </book>
+    <book>
+        <title>The Talisman</title>
+        <year>1984</year>
+        <author>Stephen King, Peter Straub</author>
+        <genre>Fantasy, Horror</genre>
+        <themes>
+            <theme>Parallel universes</theme>
+            <theme>Hero’s journey</theme>
+            <theme>Mother-son bond</theme>
+            <theme>Good vs. evil</theme>
+        </themes>
+    </book>
+    <book>
+        <title>Crime and Punishment</title>
+        <year>1866</year>
+        <author>Fyodor Dostoevsky</author>
+        <genre>Fiction, Psychological, Philosophical novel</genre>
+        <themes>
+            <theme>Guilt</theme>
+            <theme>Morality</theme>
+            <theme>Redemption</theme>
+            <theme>Crime and justice</theme>
+        </themes>
+    </book>
+</books>
