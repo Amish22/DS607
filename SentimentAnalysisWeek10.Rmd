@@ -1,0 +1,150 @@
+---
+title: "Sentiment Analysis with Financial Data"
+author: "Amish Rasheed"
+date: "11-03-2024"
+output: html_document
+---
+
+# Sentiment Analysis with Tidy Data
+
+## The `sentiments` Datasets
+
+We’ll use the tidytext package, which provides access to several sentiment lexicons. Three commonly used general-purpose lexicons are:
+
+- **AFINN** 
+- **Bing**
+- **NRC**
+
+```{r load-libraries}
+# Load necessary libraries
+library(tidyverse)
+library(tidytext)
+library(sentimentr)
+library(dplyr)
+library(ggplot2)
+library(wordcloud)
+library(RColorBrewer)
+```
+
+# Load the financial data
+```{r}
+financial_data <- read_csv("https://raw.githubusercontent.com/Amish22/DS607/refs/heads/main/financial_data.csv") 
+financial_data_clean <- financial_data %>%
+  mutate(text = str_to_lower(Sentence)) %>% 
+  unnest_tokens(word, text)
+head(financial_data_clean)
+```
+## Sentiment Analysis with Inner Join
+
+### Calculate Sentiment with Bing, AFINN, and NRC Lexicons
+Let’s examine the distribution of positive and negative sentiment within the financial data using the three lexicons.
+```{r}
+# Bing sentiment
+bing_sentiment <- financial_data_clean %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment_score = positive - negative)
+
+bing_sentiment
+```
+```{r}
+# AFINN sentiment
+afinn_sentiment <- financial_data_clean %>%
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  summarize(sentiment_score = sum(value))
+
+afinn_sentiment
+```
+```{r}
+# NRC sentiment
+nrc_sentiment <- financial_data_clean %>%
+  inner_join(get_sentiments("nrc") %>% filter(sentiment %in% c("positive", "negative")), by = "word") %>%
+  count(sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment_score = positive - negative)
+
+nrc_sentiment
+```
+```{r}
+bing_net <- financial_data_clean %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  mutate(score = ifelse(sentiment == "positive", 1, -1)) %>%
+  group_by(Sentence_ID = row_number() %/% 80) %>%
+  summarize(net_sentiment = sum(score)) %>%
+  mutate(lexicon = "Bing")
+
+afinn_net <- financial_data_clean %>%
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  group_by(Sentence_ID = row_number() %/% 80) %>%
+  summarize(net_sentiment = sum(value)) %>%
+  mutate(lexicon = "AFINN")
+
+nrc_net <- financial_data_clean %>%
+  inner_join(get_sentiments("nrc") %>% filter(sentiment %in% c("positive", "negative")), by = "word") %>%
+  mutate(score = ifelse(sentiment == "positive", 1, -1)) %>%
+  group_by(Sentence_ID = row_number() %/% 80) %>%
+  summarize(net_sentiment = sum(score)) %>%
+  mutate(lexicon = "NRC")
+
+# Sentimentr calculation
+sentimentr_net <- sentiment_by(financial_data$Sentence) %>%
+  mutate(Sentence_ID = row_number() %/% 80) %>%  # Create Sentence_ID chunks of 80
+  group_by(Sentence_ID) %>%
+  summarize(net_sentiment = mean(ave_sentiment)) %>%
+  mutate(lexicon = "Sentimentr")
+
+sentimentr_net
+
+combined_net_sentiment <- bind_rows(bing_net, afinn_net, nrc_net, sentimentr_net)
+
+# Plot comparative sentiment
+ggplot(combined_net_sentiment, aes(x = Sentence_ID, y = net_sentiment, color = lexicon)) +
+  geom_line() +
+  labs(title = "Comparative Sentiment Analysis Across Lexicons",
+       x = "Text Chunk (Sentence_ID)",
+       y = "Net Sentiment Score",
+       color = "Lexicon") +
+  theme_minimal()
+```
+### Most Common Positive and Negative Words
+```{r}
+# Most common positive and negative words using Bing
+bing_word_counts <- financial_data_clean %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+# Visualize most common positive and negative words
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL,
+       title = "Most Common Positive and Negative Words in Financial Data")
+```
+### Word Cloud of Common Words
+```{r}
+word_counts <- financial_data_clean %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word, sort = TRUE)
+
+set.seed(1234)
+wordcloud(
+  words = word_counts$word,
+  freq = word_counts$n,
+  min.freq = 2,
+  max.words = 100,
+  random.order = FALSE,
+  rot.per = 0.35,
+  colors = brewer.pal(8, "Dark2")
+)
+```
+
+### Conclusion
+By using multiple lexicons, we can capture different nuances in sentiment. For example, certain terms in financial contexts may be strongly associated with growth or decline, which could impact financial decision-making. The ability to view sentiment across multiple lexicons provides a deeper, multifaceted understanding of sentiment patterns in financial data.
