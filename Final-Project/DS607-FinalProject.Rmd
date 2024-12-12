@@ -1,0 +1,339 @@
+---
+title: "Air Quality Analysis in NYC"
+author: "Amish Rasheed"
+date: "2024-12-10"
+output:
+  pdf_document: default
+  html_document: default
+---
+# Introduction
+
+## Motivation
+Air pollution is a critical public health concern, with PM2.5 (fine particulate matter) being one of the most harmful pollutants due to its ability to penetrate deep into the lungs and bloodstream. Numerous studies have highlighted the adverse health impacts of PM2.5, including respiratory and cardiovascular diseases. New York City, with its dense population and varied sources of pollution, offers a unique opportunity to study the dynamics of PM2.5 levels.
+
+While the impacts of PM2.5 on public health are well-documented, there is a need to explore its potential interactions with other emergent public health crises. The COVID-19 pandemic has raised questions about the role of environmental factors, such as air pollution, in exacerbating disease transmission and severity. In this analysis I wanted to examine the relationship between PM2.5 levels and COVID-19 case rates in NYC.
+
+Additionally, I wanted to integrate live PM2.5 levels into this analysis.
+
+## Objectives
+The primary objectives of this analysis are:
+
+- **PM2.5 Analysis**: Analyze historical PM2.5 data in NYC, exploring spatial and temporal variations across neighborhoods.
+- **COVID-19 Correlation**: Investigate the correlation between PM2.5 levels and COVID-19 case rates to understand potential environmental influences on the pandemic.
+- **Real-Time Monitoring**: Utilize an API to incorporate live PM2.5 data, providing insights into current air quality levels and their implications.
+- **Advanced Analysis**:
+  - Apply clustering techniques to identify patterns in PM2.5 levels by neighborhood.
+  - Explore geospatial relationships between air quality, COVID-19 rates, and neighborhood characteristics.
+  - Perform regression analysis to quantify relationships between PM2.5 and health outcomes.
+---
+
+# Data Overview
+
+## Data Source
+- The PM2.5 data sourced from the [NYC Environmental Public Health Tracking Portal](https://a816-dohbesp.nyc.gov/IndicatorPublic/).
+- Covid caserate data: https://github.com/nychealth/coronavirus-data/tree/master/trends
+
+## Data Cleaning and Preprocessing
+The datasets were merged and cleaned to ensure consistency. Key preprocessing steps include:
+- Mapping geographic regions using UHF IDs and ZIP codes.
+- Standardizing units for clustering and regression analysis.
+- Extracting and formatting time periods for seasonal trends analysis.
+
+
+# Data Loading and Preprocessing
+```{r}
+library(readr) 
+library(dplyr)
+library(ggplot2)
+library(factoextra)
+library(httr)
+library(jsonlite)
+library(cluster)
+library(leaflet)
+library(dplyr)
+library(car)
+```
+
+```{r}
+covid_caserate_csv <- "data/caserate-by-modzcta.csv"
+location_csv <- "data/location.csv"
+asthma_emergency_department_visits_PM2.5_csv <- "data/NYC EH Data Portal - Asthma emergency department visits due to PM2.5 (full table).csv"
+deaths_pm2.5_csv <- "data/NYC EH Data Portal - Deaths due to PM2.5 (full table).csv"
+fine_particles_2.5_csv <- "data/NYC EH Data Portal - Fine particles (PM 2.5) (full table).csv"
+respiratory_hospitalizations_2.5_csv <- "data/NYC EH Data Portal - Respiratory hospitalizations due to PM2.5 (age 20+) (full table).csv"
+uhf_to_zip_csv <- "data/uhf-to-zip crosswalk.csv"
+
+# Load the CSV file into a data frame
+covid_caserate <- read_csv(covid_caserate_csv)
+location <- read_csv(location_csv)
+asthma_emergency_department_visits_PM2.5 <- read_csv(asthma_emergency_department_visits_PM2.5_csv)
+deaths_pm2.5 <- read_csv(deaths_pm2.5_csv)
+fine_particles <- read_csv(fine_particles_2.5_csv)
+respiratory_hospitalizations_2.5 <- read_csv(respiratory_hospitalizations_2.5_csv)
+uhf_to_zip <- read_csv(uhf_to_zip_csv)
+
+# Merge and preprocess
+fine_particles$GeoID <- as.integer(fine_particles$GeoID)
+uhf_to_zip$UHF_id <- as.integer(uhf_to_zip$UHF_id)
+
+merged_data <- merge(fine_particles, uhf_to_zip, by.x = "GeoID", by.y = "UHF_id")
+
+grouped_data <- merged_data %>%
+  group_by(UHF_name) %>%
+  summarise(PM2.5_Mean = mean(`Mean mcg/m3`, na.rm = TRUE)) %>%
+  ungroup()
+```
+---
+
+# Exploratory Data Analysis (EDA)
+
+**PM2.5 Levels Across Regions**
+```{r}
+# Visualize PM2.5 levels
+ggplot(grouped_data, aes(x = reorder(UHF_name, PM2.5_Mean), y = PM2.5_Mean)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Average PM2.5 Levels by UHF Region",
+    x = "UHF Region",
+    y = "Mean PM2.5 Levels (mcg/m3)"
+  ) +
+  theme_minimal()
+```
+This bar plot presents the average PM2.5 levels (in micrograms per cubic meter) across different UHF (United Hospital Fund) regions in New York City. Each region's mean PM2.5 concentration was calculated to highlight spatial differences in air quality.
+---
+
+# Live Data from API 
+```{r}
+# Load location data
+location_data <- read.csv("data/location.csv")
+
+# Define API token
+api_token <- "0e2ae6b3aaff2a0ea81b4baa757e66447608536f"
+
+# Function to fetch PM2.5 data
+fetch_pm25 <- function(lat, lng) {
+  url <- sprintf("https://api.waqi.info/feed/geo:%f;%f/?token=%s", lat, lng, api_token)
+  response <- httr::GET(url)
+  if (response$status_code == 200) {
+    data <- fromJSON(content(response, as = "text", encoding = "UTF-8"))
+    if (data$status == "ok") {
+      return(data$data$iaqi$pm25$v)
+    }
+  }
+  return(NA)
+}
+
+# Fetch PM2.5 data
+location_data <- location_data %>%
+  rowwise() %>%
+  mutate(PM2.5 = fetch_pm25(Latitude, Longitude))
+head(location_data)
+
+# Create a map
+leaflet(location_data) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    ~Longitude, ~Latitude,
+    color = ~ifelse(PM2.5 > 100, "red", "green"),
+    popup = ~paste(SiteName, "<br>PM2.5:", PM2.5),
+    radius = 5
+  )
+```
+This section integrates real-time air quality data using the World Air Quality Index (WAQI) API. The script fetches live PM2.5 levels for specified locations and visualizes them on an interactive map.
+---
+
+# Correlation and Regression Analysis
+```{r}
+# Load datasets
+caserate <- read.csv("data/caserate-by-modzcta.csv")
+uhf_to_zip <- read.csv("data/uhf-to-zip crosswalk.csv")
+respiratory <- read.csv("data/NYC EH Data Portal - Respiratory hospitalizations due to PM2.5 (age 20+) (full table).csv")
+
+# Process UHF-to-Zip Crosswalk
+uhf_to_zip <- uhf_to_zip %>%
+  separate_rows(Zipcodes, sep = ",") %>% # Split multiple zip codes
+  mutate(Zipcodes = as.numeric(Zipcodes)) # Convert Zipcodes to numeric
+
+# Extract ZIP codes from CASERATE columns in the Caserate dataset
+caserate_long <- caserate %>%
+  pivot_longer(cols = starts_with("CASERATE_"),
+               names_to = "ZIP_column",
+               values_to = "CaseRate") %>%
+  mutate(ZIP = as.numeric(gsub("CASERATE_", "", ZIP_column)))
+
+# Merge UHF-to-Zip with Caserate Data
+caserate_mapped <- caserate_long %>%
+  left_join(uhf_to_zip, by = c("ZIP" = "Zipcodes"))
+
+# Clean and Prepare Respiratory Data
+respiratory_clean <- respiratory %>%
+  rename(Respiratory_Hospitalizations = Estimated.annual.rate.per.100.000.adults) %>%
+  select(GeoID, Respiratory_Hospitalizations) %>%
+  mutate(GeoID = as.numeric(GeoID))
+
+# Merge Caserate and Respiratory Data
+final_data <- caserate_mapped %>%
+  left_join(respiratory_clean, by = c("UHF_id" = "GeoID")) %>%
+  filter(!is.na(CaseRate) & !is.na(Respiratory_Hospitalizations))
+
+# Perform Correlation Analysis
+correlation <- final_data %>%
+  summarise(correlation = cor(CaseRate, Respiratory_Hospitalizations, use = "complete.obs"))
+
+print(correlation)
+
+write.csv(final_data, "data/processed_data.csv", row.names = FALSE)
+
+# Regression Analysis
+regression_model <- lm(Respiratory_Hospitalizations ~ CaseRate, data = final_data)
+summary(regression_model)
+
+# Q-Q Plot
+qqPlot(regression_model, main = "Q-Q Plot")
+
+# Residuals vs Fitted Plot
+ggplot(data = final_data, aes(x = regression_model$fitted.values, y = regression_model$residuals)) +
+  geom_point(alpha = 0.5) +
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+  labs(title = "Residuals vs Fitted Values", x = "Fitted Values", y = "Residuals") +
+  theme_minimal()
+
+# Scale-Location Plot
+ggplot(data = final_data, aes(x = regression_model$fitted.values, y = sqrt(abs(regression_model$residuals)))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "loess", color = "blue", se = FALSE) +
+  labs(title = "Scale-Location Plot", x = "Fitted Values", y = "Sqrt(|Residuals|)") +
+  theme_minimal()
+
+# Cook's Distance Plot
+cooksd <- cooks.distance(regression_model)
+plot(cooksd, type = "h", main = "Cook's Distance", ylab = "Cook's Distance", xlab = "Observation")
+abline(h = 4/(nrow(final_data) - length(regression_model$coefficients) - 1), col = "red", lty = 2)
+
+# Histogram of Residuals
+hist(regression_model$residuals, breaks = 30, main = "Histogram of Residuals", xlab = "Residuals", col = "skyblue")
+```
+The correlation and regression analysis assesses the relationship between PM2.5 levels and public health outcomes, focusing on respiratory hospitalizations and COVID-19 case rates. The QQ plot, residuals vs fitted values plot, scale-location plot, Cook's distance plot, and histogram of residuals evaluate the model's assumptions and diagnostics.
+
+The analysis demonstrates that PM2.5 levels alone do not significantly explain respiratory hospitalizations or case rates. Future analyses should explore multivariate models incorporating demographic, socioeconomic, and environmental variables for deeper insights. Additionally, transformations or alternative regression techniques may be necessary to address non-normality and heteroscedasticity.
+
+## Regression Analysis Between Asthma Emergency Visits and COVID Case Rates
+```{r}
+# Load necessary datasets
+asthma_data <- read_csv("data/NYC EH Data Portal - Asthma emergency department visits due to PM2.5 (full table).csv")
+
+# Prepare asthma data (excluding Population column)
+asthma_data_clean <- asthma_data %>%
+  select(GeoID, `Estimated annual number (age 18+)`, `Estimated annual rate (age 18+) per 100,000 adults`) %>%
+  rename(
+    Emergency_Visits = `Estimated annual number (age 18+)`,
+    Asthma_Rate = `Estimated annual rate (age 18+) per 100,000 adults`
+  )
+
+# Merge Caserate and Asthma Data
+final_asthma_data <- caserate_mapped %>%
+  left_join(asthma_data_clean, by = c("UHF_id" = "GeoID")) %>%
+  filter(!is.na(CaseRate) & !is.na(Emergency_Visits))
+
+# Perform Regression Analysis
+asthma_regression_model <- lm(Emergency_Visits ~ CaseRate, data = final_asthma_data)
+summary(asthma_regression_model)
+
+# Visualize the Relationship
+ggplot(final_asthma_data, aes(x = CaseRate, y = Emergency_Visits)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(
+    title = "Relationship Between Asthma Emergency Visits and COVID Case Rates",
+    x = "COVID Case Rate",
+    y = "Asthma Emergency Visits"
+  ) +
+  theme_minimal()
+```
+The regression analysis examines the relationship between asthma emergency department visits and COVID-19 case rates. The results show a statistically significant, but very weak, negative relationship (slope = -0.0034, p-value < 2e-16). For every one-unit increase in COVID-19 case rates, asthma emergency visits decrease by 0.0034 on average. The intercept of 65.94 suggests that when COVID-19 case rates are zero, the predicted number of asthma visits is approximately 66. However, the R-squared value is extremely low (0.0005), indicating that COVID-19 case rates explain less than 0.05% of the variability in asthma emergency visits. This suggests that while there is a statistical association, COVID-19 case rates have negligible practical influence on asthma-related emergency visits. 
+
+## Seasonal Trends in PM2.5 Levels
+```{r}
+annual_data <- fine_particles %>%
+  filter(grepl("Annual Average", TimePeriod)) %>%
+  group_by(TimePeriod) %>%
+  summarise(Average_PM2.5 = mean(`Mean mcg/m3`, na.rm = TRUE))
+
+# annual averages as a bar plot
+ggplot(annual_data, aes(x = reorder(TimePeriod, Average_PM2.5), y = Average_PM2.5)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(
+    title = "Annual Average PM2.5 Levels",
+    x = "TimePeriod",
+    y = "Average PM2.5 Levels (mcg/m3)"
+  ) +
+  coord_flip() +
+  theme_minimal()
+```
+
+## ANOVA Analysis
+ANOVA (Analysis of Variance) to compare PM2.5 levels across different regions (UHF regions or ZIP codes) or across time periods (e.g., seasons, years).
+
+Null Hypothesis (H0): The mean PM2.5 levels (or case rates) are the same across groups (e.g., regions or time periods).
+Alternative Hypothesis (H1): There is a significant difference in means across groups.
+```{r}
+# ANOVA for PM2.5 levels by UHF region
+anova_model <- aov(PM2.5_Mean ~ UHF_name, data = grouped_data)
+summary(anova_model)
+
+# Post-hoc test if significant differences exist
+TukeyHSD(anova_model)
+```
+The ANOVA shows significant differences in PM2.5 levels across UHF regions (Sum Sq = 26.36, Mean Sq = 0.6428). However, post-hoc Tukey tests couldn't identify specific differences due to missing or invalid data, requiring further data cleaning for detailed insights.
+
+## Hierarchical Clustering of PM2.5 Levels
+```{r}
+# data for clustering (PM2.5_Mean only)
+data_for_clustering <- grouped_data %>%
+  select(PM2.5_Mean) %>%
+  scale()
+
+# Determine optimal number of clusters
+library(factoextra)
+fviz_nbclust(data_for_clustering, kmeans, method = "wss") +
+  labs(title = "Optimal Clusters using Elbow Method")
+
+# Apply K-means clustering
+set.seed(123)
+kmeans_result <- kmeans(data_for_clustering, centers = 4)  # Adjust 'centers' based on elbow plot
+grouped_data$Cluster <- as.factor(kmeans_result$cluster)
+
+# Plot with improved label clarity
+ggplot(grouped_data, aes(x = PM2.5_Mean, y = Cluster, color = Cluster)) +
+  geom_point(size = 3, alpha = 0.7) +
+  geom_text(
+    aes(label = UHF_name),
+    hjust = 0,         
+    vjust = 1,         
+    size = 3,          
+    check_overlap = TRUE  
+  ) +
+  labs(
+    title = "Clusters of PM2.5 Levels by UHF Region with Labels",
+    x = "Scaled PM2.5 Mean Levels",
+    y = "Cluster",
+    color = "Cluster"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",  
+    plot.title = element_text(size = 14, face = "bold"),  
+    axis.text.x = element_text(angle = 45, hjust = 1)    
+  )
+```
+
+---
+# Future Directions
+Integrate Demographic Data: Incorporate demographic characteristics such as age distribution, socioeconomic status, and pre-existing health conditions for deeper insights.
+Expand to Other Pollutants: Analyze additional air quality indicators for a comprehensive understanding of air pollution in NYC and other cities 
+Real-Time Monitoring: Leverage API data to explore temporal variations. 
+Geospatial Analysis: Investigate spatial correlations using GIS tools to map health outcomes against pollution levels.
+---
+# Conclusion
+In conclusion, while this analysis may not be significant, it has been immensely useful for me in advancing my own understanding and skill set. Through this project, I gained hands-on experience with techniques like regression analysis, clustering, and ANOVA, as well as managing the challenges of data cleaning, integration, and visualization. Despite the weak statistical results, this process has deepened my ability to critically analyze data and interpret findings, which will be invaluable as I move forward in my studies and work. This project has given me a practical foundation to build upon and equipped me with the tools to tackle more complex data-driven challenges in the future.
